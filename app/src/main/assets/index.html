@@ -1,0 +1,194 @@
+<!DOCTYPE html><html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Universal ZIP-to-APK Builder</title>
+<style>
+:root{--bg:#0b0b12;--card:#151522;--purple:#8957ff;--text:#f5f3ff;--muted:#aaa7bd;--border:#29283a}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--text);font-family:Arial,sans-serif}
+header{padding:17px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;background:#0b0b12;z-index:5}
+.logo{font-size:17px;font-weight:bold}.logo span{color:#a98aff}
+.badge{font-size:11px;color:#bca6ff;background:#241a40;padding:7px 9px;border-radius:20px}
+main{max-width:850px;margin:auto;padding:22px 15px 45px}
+h1{font-size:27px;margin:12px 0}p{color:var(--muted);line-height:1.6}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:24px 0}
+.stat,.card{background:var(--card);border:1px solid var(--border);border-radius:15px;padding:16px}
+.stat strong{display:block;font-size:23px;margin-bottom:7px}.stat small{color:var(--muted)}
+h2{font-size:18px;margin-top:0}
+.drop{border:1px dashed #7250c4;border-radius:13px;padding:28px 12px;text-align:center;background:#171326;margin:15px 0}
+.drop .icon{font-size:36px}
+button,.button{border:0;border-radius:10px;background:var(--purple);color:white;padding:12px 15px;font-weight:bold;font-size:14px;cursor:pointer;display:inline-block}
+button:disabled{opacity:.45;cursor:not-allowed}
+.secondary{background:#29273a;color:#e4ddff}
+input[type=file]{display:none}
+.fileinfo{font-size:13px;overflow-wrap:anywhere;color:#c9b7ff;margin-top:12px}
+.actions{display:flex;gap:9px;flex-wrap:wrap;margin-top:15px}
+.progress{height:7px;background:#29283a;border-radius:10px;overflow:hidden;margin:15px 0}
+.bar{height:100%;width:0;background:var(--purple);transition:width .3s}
+.status{font-size:13px;color:#c6b2ff}
+.log{font-family:monospace;font-size:12px;line-height:1.8;background:#090910;border-radius:9px;padding:12px;white-space:pre-wrap;overflow-wrap:anywhere;max-height:180px;overflow:auto;color:#bcb8d0}
+.project{padding:13px 0;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;font-size:13px}
+.project:last-child{border:0}
+footer{text-align:center;padding:20px;color:#77738b;font-size:12px}
+.notice{font-size:12px;border-left:3px solid #e9b34d;padding:10px 12px;background:#211b13;color:#e9d4ac;border-radius:5px;line-height:1.6;margin-top:14px}
+@media(max-width:420px){.stats{gap:6px}.stat{padding:11px}.stat strong{font-size:20px}.stat small{font-size:10px}h1{font-size:24px}}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">⚡ Universal <span>ZIP → APK</span></div>
+  <span class="badge">BROWSER EDITION</span>
+</header><main>
+  <p>DEVELOPER WORKSPACE / HOME</p>
+  <h1>Build something amazing.</h1>
+  <p>Upload an Android project ZIP, inspect its contents, and prepare it for an APK build.</p>  <div class="stats">
+    <div class="stat"><strong id="projectCount">0</strong><small>Projects</small></div>
+    <div class="stat"><strong id="fileCount">0</strong><small>Files scanned</small></div>
+    <div class="stat"><strong id="buildCount">0</strong><small>Builds completed</small></div>
+  </div>  <section class="card">
+    <h2>📦 Upload Android Project</h2>
+    <p>Select a ZIP file from your phone. The browser will inspect the archive locally.</p>
+    <div class="drop" id="drop">
+      <div class="icon">📁</div>
+      <p id="uploadText">Drop your ZIP here or choose a file</p>
+      <label class="button" for="zipInput">Choose ZIP File</label>
+      <input id="zipInput" type="file" accept=".zip,application/zip">
+      <div class="fileinfo" id="fileInfo"></div>
+    </div>
+    <div class="actions">
+      <button id="analyzeBtn" disabled>🔍 Analyze Project</button>
+      <button id="resetBtn" class="secondary">Reset</button>
+    </div>
+    <div id="analysis" hidden>
+      <h2 style="margin-top:22px">Project Analysis</h2>
+      <div class="log" id="analysisLog"></div>
+    </div>
+    <div class="notice">Security: This page does not execute uploaded code. Analysis happens in your browser. APK compilation requires a separate build runner.</div>
+  </section>  <section class="card" style="margin-top:16px">
+    <h2>⚙️ APK Build Status</h2>
+    <p id="buildMessage">Upload and analyze an Android project to get started.</p>
+    <div class="progress"><div class="bar" id="bar"></div></div>
+    <div class="status" id="status">● Waiting for project</div>
+    <div class="actions">
+      <button id="buildBtn" disabled>Build APK</button>
+      <button id="downloadBtn" class="secondary" hidden>Download APK</button>
+    </div>
+    <div class="notice">Build is not connected to a server yet. This button will not pretend to compile an APK. A real Android build service must be connected before APK files can be generated.</div>
+  </section>  <section class="card" style="margin-top:16px">
+    <h2>📋 Build Logs</h2>
+    <div class="log" id="logs">[SYSTEM] Workspace initialized.
+[INFO] Waiting for ZIP upload.</div>
+  </section>  <section class="card" style="margin-top:16px">
+    <h2>📁 Recent Projects</h2>
+    <div id="projects"><p>No projects analyzed yet.</p></div>
+  </section>
+</main><footer>Universal ZIP-to-APK Builder · Independent Project · v0.1</footer><script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script><script>
+const $=id=>document.getElementById(id);
+let selectedFile=null, projectName="", filesFound=[], projects=[];
+function log(message){
+  const box=$("logs");
+  box.textContent+="\n["+new Date().toLocaleTimeString()+"] "+message;
+  box.scrollTop=box.scrollHeight;
+}
+$("zipInput").addEventListener("change",e=>loadFile(e.target.files[0]));
+function loadFile(file){
+  if(!file)return;
+  if(!file.name.toLowerCase().endsWith(".zip")){
+    alert("Please select a ZIP file.");return;
+  }
+  if(file.size>100*1024*1024){
+    alert("ZIP file is too large. Maximum size is 100 MB.");return;
+  }
+  selectedFile=file;
+  projectName=file.name.replace(/\.zip$/i,"");
+  $("fileInfo").textContent=file.name+" · "+(file.size/1024/1024).toFixed(2)+" MB";
+  $("uploadText").textContent="ZIP file selected";
+  $("analyzeBtn").disabled=false;
+  $("buildBtn").disabled=true;
+  $("analysis").hidden=true;
+  $("status").textContent="● ZIP selected — ready to analyze";
+  $("buildMessage").textContent="Analyze the project first.";
+  log("ZIP selected: "+file.name);
+}
+$("drop").addEventListener("dragover",e=>{e.preventDefault()});
+$("drop").addEventListener("drop",e=>{
+  e.preventDefault();
+  const file=e.dataTransfer.files[0];
+  if(file)loadFile(file);
+});
+$("analyzeBtn").addEventListener("click",async()=>{
+  if(!selectedFile)return;
+  $("analyzeBtn").disabled=true;
+  $("status").textContent="● Analyzing ZIP...";
+  log("Starting local ZIP analysis.");
+  try{
+    if(typeof JSZip==="undefined")throw new Error("ZIP library did not load. Check your internet connection and retry.");
+    const zip=await JSZip.loadAsync(selectedFile);
+    filesFound=Object.keys(zip.files).filter(n=>!zip.files[n].dir);
+    const paths=filesFound.map(n=>n.toLowerCase());
+    const hasGradle=paths.some(n=>n.endsWith("build.gradle")||n.endsWith("build.gradle.kts"));
+    const hasSettings=paths.some(n=>n.endsWith("settings.gradle")||n.endsWith("settings.gradle.kts"));
+    const hasManifest=paths.some(n=>n.endsWith("androidmanifest.xml"));
+    const hasPubspec=paths.some(n=>n.endsWith("pubspec.yaml"));
+    const hasPackage=paths.some(n=>n.endsWith("package.json"));
+    const isAndroid=hasManifest&&(hasGradle||hasSettings);
+    const result=[
+      "Project: "+projectName,
+      "Archive size: "+(selectedFile.size/1024/1024).toFixed(2)+" MB",
+      "Files found: "+filesFound.length,
+      "Gradle build file: "+(hasGradle?"Yes":"No"),
+      "Gradle settings: "+(hasSettings?"Yes":"No"),
+      "AndroidManifest.xml: "+(hasManifest?"Yes":"No"),
+      "Flutter pubspec.yaml: "+(hasPubspec?"Yes":"No"),
+      "package.json: "+(hasPackage?"Yes":"No"),
+      "",
+      isAndroid?"RESULT: Android/Gradle project indicators found.":"RESULT: Standard Android/Gradle structure not confirmed.",
+      "",
+      "First 80 files:",
+      ...filesFound.slice(0,80)
+    ];
+    $("analysisLog").textContent=result.join("\n");
+    $("analysis").hidden=false;
+    $("fileCount").textContent=filesFound.length;
+    $("projectCount").textContent=Number($("projectCount").textContent)+1;
+    $("buildBtn").disabled=false;
+    $("status").textContent=isAndroid?"● Android project indicators found":"● Analysis completed — verify project type";
+    $("buildMessage").textContent="Analysis complete. Build runner connection is still required.";
+    projects.unshift({name:projectName,count:filesFound.length,android:isAndroid});
+    renderProjects();
+    log("Analysis complete. "+filesFound.length+" files inspected.");
+    log("No APK was generated. A real build runner is not connected.");
+  }catch(err){
+    $("status").textContent="● Analysis failed";
+    log("ERROR: "+err.message);
+    alert(err.message);
+  }finally{$("analyzeBtn").disabled=false}
+});
+$("buildBtn").addEventListener("click",()=>{
+  $("status").textContent="● Build runner not connected";
+  $("buildMessage").textContent="Cannot build yet: no Android SDK/Gradle build service is connected.";
+  $("bar").style.width="0";
+  $("downloadBtn").hidden=true;
+  log("BUILD BLOCKED: connect a secure Android build runner before compiling.");
+  alert("The analyzer works locally, but APK compilation requires a connected Android build service. No APK has been created.");
+});
+$("resetBtn").addEventListener("click",()=>{
+  selectedFile=null;filesFound=[];$("zipInput").value="";
+  $("fileInfo").textContent="";$("uploadText").textContent="Drop your ZIP here or choose a file";
+  $("analysis").hidden=true;$("analyzeBtn").disabled=true;$("buildBtn").disabled=true;
+  $("status").textContent="● Waiting for project";$("buildMessage").textContent="Upload and analyze an Android project to get started.";
+  $("bar").style.width="0";$("downloadBtn").hidden=true;
+  log("Workspace reset.");
+});
+function renderProjects(){
+  $("projects").innerHTML="";
+  projects.forEach(p=>{
+    const row=document.createElement("div");row.className="project";
+    const name=document.createElement("span");name.textContent="📦 "+p.name;
+    const detail=document.createElement("span");detail.textContent=p.count+" files · "+(p.android?"Android":"Unverified");
+    row.append(name,detail);$("projects").appendChild(row);
+  });
+}
+</script></body>
+</html>
